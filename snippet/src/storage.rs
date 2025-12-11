@@ -32,22 +32,29 @@ impl JsonStorage {
 }
 
 impl JsonStorage {
+    /// Creates a new JSON storage with file path.
+    pub fn new(path: String) -> Self {
+        Self { path }
+    }
+
     /// Load all data.
     pub fn load_all(&self) -> Result<HashMap<String, Snippet>, AppError> {
         if Path::new(&self.path).exists() {
-            let data = fs::read_to_string(&self.path)?;
-            let map = serde_json::from_str(&data)?;
+            let file = File::open(&self.path)?;
+            let map = serde_json::from_reader(file)?;
             Ok(map)
         } else {
             Ok(HashMap::new())
         }
     }
+
     /// Save all data.
     pub fn save_all(&self, data: &HashMap<String, Snippet>) -> Result<(), AppError> {
-        let json = serde_json::to_string_pretty(data)?;
-        fs::write(&self.path, json)?;
+        let file = File::create(&self.path)?;
+        serde_json::to_writer_pretty(file, data)?;
         Ok(())
     }
+
     /// Delete by name.
     pub fn delete(&self, name: &str) -> Result<(), AppError> {
         let mut all = self.load_all()?;
@@ -56,30 +63,22 @@ impl JsonStorage {
         Ok(())
     }
 }
+
 impl SnippetStorage for JsonStorage {
     fn load_all(&self) -> Result<HashMap<String, Snippet>, AppError> {
-        if Path::new(&self.path).exists() {
-            let data = fs::read_to_string(&self.path)?;
-            let map = serde_json::from_str(&data)?;
-            Ok(map)
-        } else {
-            Ok(HashMap::new())
-        }
+        JsonStorage::load_all(self)
     }
 
     fn save_all(&self, data: &HashMap<String, Snippet>) -> Result<(), AppError> {
-        let json = serde_json::to_string_pretty(data)?;
-        fs::write(&self.path, json)?;
-        Ok(())
+        JsonStorage::save_all(self, data)
     }
 
     fn delete(&self, name: &str) -> Result<(), AppError> {
-        let mut all = self.load_all()?;
-        all.remove(name);
-        self.save_all(&all)?;
-        Ok(())
+        JsonStorage::delete(self, name)
     }
 }
+
+
 
 // ------------------ SQLITE STORAGE ------------------
 /// SQLite-based implementation of [`SnippetStorage`].
